@@ -1,0 +1,341 @@
+# afterglow Tutorial
+
+This tutorial shows a complete user workflow for half-life-aware differential expression.
+
+## 1. Install
+
+```r
+install.packages("BiocManager")
+BiocManager::install(c("limma", "edgeR", "DESeq2"))
+install.packages("path/to/afterglow",
+                 repos = NULL, type = "source")
+library(afterglow)
+```
+
+## 2. Prepare Expression And Group Files
+
+Expression CSV format:
+
+```text
+gene_id,C1,C2,T1,T2
+TNF,10,11,25,27
+NFKBIA,100,98,170,165
+IL6,5,6,50,48
+```
+
+Group CSV format:
+
+```text
+sample,group
+C1,Control
+C2,Control
+T1,Stim
+T2,Stim
+```
+
+Read files:
+
+```r
+expr <- read_expression_csv("expr.csv", gene_col = "gene_id")
+group <- read_group_csv("group.csv", sample_col = "sample", group_col = "group")
+```
+
+## 3. Prepare Half-Life Data
+
+Option A, use TTDB:
+
+```r
+set_ttdb_dir("D:/data/ttdb")
+ttdb <- read_ttdb_downloads()
+half_life_ref <- make_half_life_reference(
+  stability_data = ttdb,
+  species = "Human",
+  aggregate = "median"
+)
+```
+
+Option B, use your own table:
+
+```r
+half_life_ref <- read.csv("half_life_ref.csv", stringsAsFactors = FALSE)
+stopifnot(all(c("gene_id", "half_life_hours") %in% names(half_life_ref)))
+```
+
+Useful `make_half_life_reference()` options:
+
+```r
+half_life_ref <- make_half_life_reference(
+  stability_data = ttdb,
+  species = "Human",
+  cell_type = NULL,
+  condition = "WT",
+  technique = NULL,
+  gene_col_preference = c("gene_name_x", "gene_name_y", "ensembl_id"),
+  aggregate = "median",
+  min_r_squared = 0.8,
+  use_decay_rate_if_half_life_missing = TRUE,
+  collapse_case = "as_is"
+)
+```
+
+## 4. Choose The Model
+
+Use `model = "pulse"` for transient responses, brief stimulation, washout designs, or early bursts that may decay before sampling.
+
+Use `model = "synthesis_rate"` for continuous stimulation or a sustained new RNA synthesis rate.
+
+When the design is ambiguous, run both:
+
+```r
+pulse_ag <- infer_turnover_expression(
+  expr = expr,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse"
+)
+
+synth_ag <- infer_turnover_expression(
+  expr = expr,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "synthesis_rate"
+)
+```
+
+## 5. Run Differential Expression
+
+For log2 microarray or log2 normalized expression:
+
+```r
+fit_limma <- run_afterglow_de(
+  expr = expr_log2,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "log2",
+  model = "pulse",
+  de_method = "limma",
+  assay_type = "microarray"
+)
+```
+
+For RNA-seq counts with limma-voom:
+
+```r
+fit_voom <- run_afterglow_de(
+  expr = counts,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse",
+  de_method = "limma_voom",
+  assay_type = "rna_seq"
+)
+```
+
+For RNA-seq counts with edgeR QLF:
+
+```r
+fit_edgeR <- run_afterglow_de(
+  expr = counts,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse",
+  de_method = "edgeR",
+  assay_type = "rna_seq"
+)
+```
+
+For RNA-seq counts with DESeq2:
+
+```r
+fit_deseq2 <- run_afterglow_de(
+  expr = counts,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse",
+  de_method = "deseq2",
+  assay_type = "rna_seq",
+  deseq_round_counts = TRUE
+)
+```
+
+For quick checks only:
+
+```r
+fit_welch <- run_afterglow_de(
+  expr = expr,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse",
+  de_method = "welch"
+)
+```
+
+## 6. Add Confidence
+
+Estimate measurement CV:
+
+```r
+cv <- estimate_cv(counts, group)
+cv_measurement <- cv["pooled"]
+```
+
+Add confidence:
+
+```r
+fit_voom <- add_confidence(fit_voom, cv_measurement = cv_measurement)
+res <- merge(fit_voom$results, fit_voom$confidence, by = "gene_id", all.x = TRUE)
+```
+
+Confidence components:
+
+```r
+res[, c(
+  "gene_id",
+  "log2_fc",
+  "adjusted_p_value",
+  "model",
+  "amplification_factor",
+  "confidence_tier",
+  "confidence_score",
+  "raw_observed_log2_fc",
+  "corrected_log2_fc",
+  "score_cf",
+  "score_snr",
+  "score_evidence"
+)]
+```
+
+## 7. Screen Candidate Genes
+
+```r
+candidates <- subset(
+  res,
+  adjusted_p_value < 0.05 &
+    abs(log2_fc) >= 1 &
+    confidence_tier %in% c("High", "Good") &
+    model_amplification_factor <= 5
+)
+
+write.csv(candidates, "afterglow_candidates.csv", row.names = FALSE)
+```
+
+Compare with a standard analysis:
+
+```r
+standard <- differential_expression(
+  mat = log2(counts + 1),
+  group = group,
+  control_group = "Control",
+  treatment_group = "Stim",
+  method = "limma",
+  assay_type = "rna_seq",
+  log_scale = TRUE
+)
+
+standard_sig <- with(standard, gene_id[adjusted_p_value < 0.05 & abs(log2_fc) >= 1])
+afterglow_sig <- with(res, gene_id[adjusted_p_value < 0.05 & abs(log2_fc) >= 1])
+gained <- setdiff(afterglow_sig, standard_sig)
+gained_high_good <- intersect(gained, res$gene_id[res$confidence_tier %in% c("High", "Good")])
+```
+
+## 8. Half-Life Perturbation Sensitivity
+
+```r
+sens <- half_life_sensitivity(
+  expr = counts,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse",
+  perturbation_sd = c(0, 0.05, 0.10, 0.20, 0.50),
+  n_iter = 50,
+  seed = 1001
+)
+
+sens$summary
+write.csv(sens$summary, "half_life_sensitivity_summary.csv", row.names = FALSE)
+write.csv(sens$gene_level, "half_life_sensitivity_gene_level.csv", row.names = FALSE)
+```
+
+When true fold-changes are known in simulation, pass them as a named vector:
+
+```r
+sens_sim <- half_life_sensitivity(
+  expr = sim_expr,
+  group = sim_group,
+  half_life_ref = sim_half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse",
+  truth_log2_fc = truth_log2_fc,
+  perturbation_sd = c(0, 0.05, 0.10, 0.20),
+  n_iter = 100,
+  seed = 1
+)
+```
+
+## 9. Export Matrices And Results
+
+```r
+fit <- run_afterglow_de(
+  expr = counts,
+  group = group,
+  half_life_ref = half_life_ref,
+  time_hours = 2,
+  control_group = "Control",
+  treatment_group = "Stim",
+  expression_scale = "linear",
+  model = "pulse",
+  de_method = "limma_voom",
+  assay_type = "rna_seq",
+  write_corrected_matrix = TRUE,
+  corrected_matrix_file = "afterglow_corrected_counts.csv",
+  write_results = TRUE,
+  results_file = "afterglow_de_results.csv"
+)
+```
+
+## 10. Recommended Reporting
+
+Report:
+
+- TTDB filters or user half-life source.
+- `time_hours`.
+- Selected kinetic model and why it matches the design.
+- Expression scale and DE method.
+- How non-positive inferred values were handled.
+- Confidence-tier thresholds and `cv_measurement`.
+- Half-life perturbation settings and stability summary.
+- Whether DESeq2 used rounded count-like afterglow values.

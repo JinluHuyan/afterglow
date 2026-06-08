@@ -1,0 +1,7 @@
+^R/\.Rhistory$
+^\.Rproj\.user$
+^.*\.Rproj$
+^afterglow\.Rcheck$
+^inst/extdata/ttdb/.*\.csv$
+^GITHUB_RELEASE_TODO\.md$
+^README\.Rmd$

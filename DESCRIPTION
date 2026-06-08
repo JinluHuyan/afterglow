@@ -1,0 +1,29 @@
+Package: afterglow
+Title: Half-Life-Aware Kinetic Bracketing from Standard RNA-seq
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Jinlu", family = "Huyan",
+           email = "jinlu.huyan@gmail.com",
+           role = c("aut", "cre")),
+    person(given = "Jianbo", family = "Xiu",
+           role = c("aut", "ths"))
+  )
+Description: Provides documented workflows for model-specified kinetic
+    bracketing analyses that account for gene-specific mRNA half-life.
+    The package reads Transcriptome Turnover Database (TTDB) tables or
+    user-supplied half-life tables, computes expression-equivalent fold-changes
+    under pulse and synthesis-rate limiting models, reports model-aware
+    confidence diagnostics, evaluates half-life perturbation sensitivity, and
+    can run differential-expression screening on the inferred matrix.
+License: MIT + file LICENSE
+URL: https://github.com/JinluHuyan/afterglow
+BugReports: https://github.com/JinluHuyan/afterglow/issues
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: R (>= 4.1.0)
+Imports: stats, utils
+Suggests: DESeq2, edgeR, limma, statmod, testthat (>= 3.0.0), knitr, rmarkdown
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+NeedsCompilation: no
