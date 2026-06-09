@@ -1,6 +1,6 @@
 # TTDB CSV placeholder
 
-This directory is a placeholder for local TTDB CSV files. Development checkouts may contain local CSV snapshots, but public source tarballs intentionally exclude the large TTDB CSV tables through `.Rbuildignore`. For manuscript reproduction, use `写作/resources/manuscript_input_manifest.tsv` to check the expected TTDB file names and configure a local TTDB directory with `set_ttdb_dir()` or `AFTERGLOW_TTDB_DIR`.
+This directory is a placeholder for local TTDB CSV files. Development checkouts may contain local CSV snapshots, but public source tarballs intentionally exclude the large TTDB CSV tables through `.Rbuildignore`. For manuscript reproduction, use the companion reproducibility archive manifest `resources/manuscript_input_manifest.tsv` to check the expected TTDB file names and configure a local TTDB directory with `set_ttdb_dir()` or `AFTERGLOW_TTDB_DIR`.
 
 For public release, the large TTDB CSV tables are intentionally excluded from the source tarball by `.Rbuildignore`:
 

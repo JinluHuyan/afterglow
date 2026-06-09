@@ -63,7 +63,7 @@ group <- data.frame(
 
 ## TTDB Half-Life Reference
 
-Download TTDB CSV files from `https://sysbio.gzzoc.com/ttdb/download.html` and keep them together in one directory. The full TTDB CSV snapshot is intentionally not bundled in the public source tarball; configure a local TTDB directory or set `AFTERGLOW_TTDB_DIR` before building a half-life reference. For manuscript reproduction, use the unified input manifest in `写作/resources/manuscript_input_manifest.tsv` to check expected file names and source accessions.
+Download TTDB CSV files from `https://sysbio.gzzoc.com/ttdb/download.html` and keep them together in one directory. The full TTDB CSV snapshot is intentionally not bundled in the public source tarball; configure a local TTDB directory or set `AFTERGLOW_TTDB_DIR` before building a half-life reference. For manuscript reproduction, use the companion reproducibility archive and its unified input manifest at `resources/manuscript_input_manifest.tsv` to check expected file names and source accessions.
 
 Configure the TTDB directory in R:
 
