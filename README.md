@@ -19,10 +19,10 @@ Or install from a source tarball:
 install.packages("afterglow_0.1.0.tar.gz", repos = NULL, type = "source")
 ```
 
-After the public repository is created, reviewers can install from GitHub:
+Reviewers can install from GitHub:
 
 ```r
-devtools::install_github("JinluHuyan/afterglow")
+remotes::install_github("JinluHuyan/afterglow")
 ```
 
 The core kinetic bracketing and confidence functions use base R dependencies. Publication-style DE workflows using `limma`, `edgeR`, or `DESeq2` require users to install those optional Bioconductor packages in their own R environment; they are not uploaded to or bundled with this repository.
@@ -101,20 +101,20 @@ half_life_ref <- make_half_life_reference(
 )
 ```
 
-mRNA half-lives can differ across tissues, cell types, conditions, and assays. TTDB stores tissue-like sample-source metadata mainly in the `cell_type` column. Prefer a cell-type- or study-matched reference when one is available:
+mRNA half-lives can differ across cell types, sample sources, conditions, and assays. TTDB stores these labels in the `cell_type` column. Prefer a cell-type- or study-matched reference when one is available. If TTDB is used as the half-life source, the available cell type labels can also be checked on the TTDB website: `https://sysbio.gzzoc.com/ttdb/index.html`.
 
 ```r
 half_life_ref <- make_half_life_reference(
   stability_data = ttdb,
   species = "Human",
-  tissue = "K562",        # alias for cell_type
+  cell_type = "K562",
   condition = "WT",
   technique = "Metabolic Labeling",
   aggregate = "median"
 )
 ```
 
-If no matched cell type or tissue-like source is available, use a broader species-level reference and report this limitation.
+If no matched cell type or sample source is available, use a broader species-level reference and report this limitation.
 
 If your expression matrix uses gene symbols but TTDB has mixed identifier columns, choose the identifier order explicitly:
 

@@ -10,9 +10,6 @@
 #'   `species_stability_combined`, then `species_stability`.
 #' @param species Optional species filter, e.g. `"Human"` or `"Mouse"`.
 #' @param cell_type Optional cell type filter. Uses exact matching.
-#' @param tissue Optional tissue or cell-type filter. TTDB stores this metadata
-#'   in the `cell_type` column, so `tissue` is a user-facing alias for
-#'   `cell_type`.
 #' @param condition Optional condition filter. Uses exact matching.
 #' @param technique Optional technique filter. Uses exact matching.
 #' @param study_id Optional TTDB study identifier filter.
@@ -35,7 +32,6 @@
 make_half_life_reference <- function(stability_data,
                                      species = NULL,
                                      cell_type = NULL,
-                                     tissue = NULL,
                                      condition = NULL,
                                      technique = NULL,
                                      study_id = NULL,
@@ -69,13 +65,6 @@ make_half_life_reference <- function(stability_data,
 
   dat <- stability_data
   n_before_filtering <- nrow(dat)
-
-  if (!is.null(tissue)) {
-    if (!is.null(cell_type) && !setequal(as.character(cell_type), as.character(tissue))) {
-      stop("Use either cell_type or tissue; if both are supplied, they must contain the same values.", call. = FALSE)
-    }
-    cell_type <- tissue
-  }
 
   # Exact matching is used by default to avoid unintended matches across species,
   # cell types, or experimental conditions.
@@ -160,9 +149,8 @@ make_half_life_reference <- function(stability_data,
 #' @param stability_data A TTDB stability data frame, or a list returned by
 #'   `read_ttdb_downloads()`. If a list is supplied, the function prefers
 #'   `species_stability_combined`, then `species_stability`.
-#' @param species,cell_type,tissue,condition,technique,study_id,sample_id
-#'   Optional exact filters applied before listing options. `tissue` is an alias
-#'   for TTDB's `cell_type` column.
+#' @param species,cell_type,condition,technique,study_id,sample_id
+#'   Optional exact filters applied before listing options.
 #' @param fields Metadata columns to summarize.
 #' @param gene_col_preference Candidate gene identifier columns, in priority
 #'   order for counting distinct genes per metadata value.
@@ -171,7 +159,6 @@ make_half_life_reference <- function(stability_data,
 ttdb_filter_options <- function(stability_data,
                                 species = NULL,
                                 cell_type = NULL,
-                                tissue = NULL,
                                 condition = NULL,
                                 technique = NULL,
                                 study_id = NULL,
@@ -191,12 +178,6 @@ ttdb_filter_options <- function(stability_data,
   .stop_if(!is.data.frame(stability_data), "stability_data must be a data frame or TTDB list.")
 
   dat <- stability_data
-  if (!is.null(tissue)) {
-    if (!is.null(cell_type) && !setequal(as.character(cell_type), as.character(tissue))) {
-      stop("Use either cell_type or tissue; if both are supplied, they must contain the same values.", call. = FALSE)
-    }
-    cell_type <- tissue
-  }
 
   if (!is.null(species) && "species_name" %in% colnames(dat)) {
     dat <- dat[dat$species_name %in% species, , drop = FALSE]

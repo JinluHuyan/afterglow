@@ -12,7 +12,7 @@ test_that("make_half_life_reference aggregates TTDB-like rows", {
   ref <- make_half_life_reference(
     stability_data = stability,
     species = "Human",
-    tissue = "HepG2",
+    cell_type = "HepG2",
     condition = "WT",
     aggregate = "median"
   )

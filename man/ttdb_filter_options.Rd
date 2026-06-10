@@ -6,7 +6,6 @@ ttdb_filter_options(
   stability_data,
   species = NULL,
   cell_type = NULL,
-  tissue = NULL,
   condition = NULL,
   technique = NULL,
   study_id = NULL,
@@ -18,7 +17,7 @@ ttdb_filter_options(
 \arguments{
 \item{stability_data}{A TTDB stability data frame, or a list returned by
 \code{\link{read_ttdb_downloads}}.}
-\item{species, cell_type, tissue, condition, technique, study_id, sample_id}{Optional exact filters applied before listing options. \code{tissue} is an alias for TTDB's \code{cell_type} column.}
+\item{species, cell_type, condition, technique, study_id, sample_id}{Optional exact filters applied before listing options.}
 \item{fields}{Metadata columns to summarize.}
 \item{gene_col_preference}{Candidate gene identifier columns, in priority order for counting distinct genes per metadata value.}
 }
@@ -32,8 +31,9 @@ available in a TTDB stability table after optional exact filtering.
 }
 \details{
 Use this helper before \code{\link{make_half_life_reference}} to identify
-cell-type or study-specific TTDB subsets. TTDB currently stores tissue-like
-sample source information in the \code{cell_type} column.
+cell-type or study-specific TTDB subsets. TTDB stores cell type and sample
+source labels in the \code{cell_type} column, and the available labels can also
+be browsed on the TTDB website.
 }
 \examples{
 ttdb <- data.frame(
