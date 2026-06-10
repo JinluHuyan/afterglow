@@ -6,8 +6,11 @@ make_half_life_reference(
   stability_data,
   species = NULL,
   cell_type = NULL,
+  tissue = NULL,
   condition = NULL,
   technique = NULL,
+  study_id = NULL,
+  sample_id = NULL,
   gene_col_preference = c("gene_name_x", "gene_name_y", "ensembl_id", "gene_id"),
   half_life_col = "half_life",
   decay_rate_col = "decay_rate",
@@ -23,8 +26,13 @@ make_half_life_reference(
 \code{\link{read_ttdb_downloads}}.}
 \item{species}{Optional species filter, for example \code{"Human"}.}
 \item{cell_type}{Optional exact cell type filter.}
+\item{tissue}{Optional tissue or cell-type filter. TTDB stores this metadata
+in the \code{cell_type} column, so \code{tissue} is a user-facing alias for
+\code{cell_type}.}
 \item{condition}{Optional exact condition filter.}
 \item{technique}{Optional exact technique filter.}
+\item{study_id}{Optional exact TTDB study identifier filter.}
+\item{sample_id}{Optional exact TTDB sample identifier filter.}
 \item{gene_col_preference}{Candidate gene identifier columns, in priority order.}
 \item{half_life_col}{Column containing half-life values in hours.}
 \item{decay_rate_col}{Column containing decay rates per hour.}
@@ -46,6 +54,9 @@ Convert TTDB stability records into a one-row-per-gene half-life reference table
 \details{
 TTDB can contain multiple records per gene across studies, samples, cell types,
 and conditions. This function filters the rows and aggregates half-life values.
+When a matching cell type or tissue-like entry is available, prefer filtering by
+\code{cell_type} or its alias \code{tissue} before falling back to a broader
+species-level reference.
 The decay rate is recalculated as \code{log(2) / half_life_hours} to keep the
 two quantities mathematically consistent.
 }

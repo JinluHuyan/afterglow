@@ -94,14 +94,32 @@ export AFTERGLOW_TTDB_DIR=/path/to/ttdb
 Build a one-row-per-gene half-life table:
 
 ```r
+ttdb_filter_options(ttdb, species = "Human", fields = c("cell_type", "condition", "technique"))
+
 half_life_ref <- make_half_life_reference(
   stability_data = ttdb,
   species = "Human",
+  cell_type = "HepG2",
   condition = "WT",
   aggregate = "median",
   min_r_squared = 0.8
 )
 ```
+
+mRNA half-lives can differ across tissues, cell types, conditions, and assays. TTDB stores tissue-like sample-source metadata mainly in the `cell_type` column. Prefer a cell-type- or study-matched reference when one is available:
+
+```r
+half_life_ref <- make_half_life_reference(
+  stability_data = ttdb,
+  species = "Human",
+  tissue = "K562",        # alias for cell_type
+  condition = "WT",
+  technique = "Metabolic Labeling",
+  aggregate = "median"
+)
+```
+
+If no matched cell type or tissue-like source is available, use a broader species-level reference and report this limitation.
 
 If your expression matrix uses gene symbols but TTDB has mixed identifier columns, choose the identifier order explicitly:
 

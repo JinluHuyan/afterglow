@@ -10,8 +10,13 @@
 #'   `species_stability_combined`, then `species_stability`.
 #' @param species Optional species filter, e.g. `"Human"` or `"Mouse"`.
 #' @param cell_type Optional cell type filter. Uses exact matching.
+#' @param tissue Optional tissue or cell-type filter. TTDB stores this metadata
+#'   in the `cell_type` column, so `tissue` is a user-facing alias for
+#'   `cell_type`.
 #' @param condition Optional condition filter. Uses exact matching.
 #' @param technique Optional technique filter. Uses exact matching.
+#' @param study_id Optional TTDB study identifier filter.
+#' @param sample_id Optional TTDB sample identifier filter.
 #' @param gene_col_preference Candidate gene identifier columns, in priority
 #'   order.
 #' @param half_life_col Column containing half-life values in hours.
@@ -30,8 +35,11 @@
 make_half_life_reference <- function(stability_data,
                                      species = NULL,
                                      cell_type = NULL,
+                                     tissue = NULL,
                                      condition = NULL,
                                      technique = NULL,
+                                     study_id = NULL,
+                                     sample_id = NULL,
                                      gene_col_preference = c("gene_name_x", "gene_name_y", "ensembl_id", "gene_id"),
                                      half_life_col = "half_life",
                                      decay_rate_col = "decay_rate",
@@ -62,6 +70,13 @@ make_half_life_reference <- function(stability_data,
   dat <- stability_data
   n_before_filtering <- nrow(dat)
 
+  if (!is.null(tissue)) {
+    if (!is.null(cell_type) && !setequal(as.character(cell_type), as.character(tissue))) {
+      stop("Use either cell_type or tissue; if both are supplied, they must contain the same values.", call. = FALSE)
+    }
+    cell_type <- tissue
+  }
+
   # Exact matching is used by default to avoid unintended matches across species,
   # cell types, or experimental conditions.
   if (!is.null(species) && "species_name" %in% colnames(dat)) {
@@ -75,6 +90,12 @@ make_half_life_reference <- function(stability_data,
   }
   if (!is.null(technique) && "technique" %in% colnames(dat)) {
     dat <- dat[dat$technique %in% technique, , drop = FALSE]
+  }
+  if (!is.null(study_id) && "study_id" %in% colnames(dat)) {
+    dat <- dat[dat$study_id %in% study_id, , drop = FALSE]
+  }
+  if (!is.null(sample_id) && "sample_id" %in% colnames(dat)) {
+    dat <- dat[dat$sample_id %in% sample_id, , drop = FALSE]
   }
   if (!is.null(min_r_squared) && "r_squared" %in% colnames(dat)) {
     r2 <- .safe_numeric(dat$r_squared)
@@ -132,4 +153,112 @@ make_half_life_reference <- function(stability_data,
     n_before_filtering
   )
   ref
+}
+
+#' List TTDB metadata values available for filtering
+#'
+#' @param stability_data A TTDB stability data frame, or a list returned by
+#'   `read_ttdb_downloads()`. If a list is supplied, the function prefers
+#'   `species_stability_combined`, then `species_stability`.
+#' @param species,cell_type,tissue,condition,technique,study_id,sample_id
+#'   Optional exact filters applied before listing options. `tissue` is an alias
+#'   for TTDB's `cell_type` column.
+#' @param fields Metadata columns to summarize.
+#' @param gene_col_preference Candidate gene identifier columns, in priority
+#'   order for counting distinct genes per metadata value.
+#' @return Data frame with columns `field`, `value`, `n_records` and `n_genes`.
+#' @export
+ttdb_filter_options <- function(stability_data,
+                                species = NULL,
+                                cell_type = NULL,
+                                tissue = NULL,
+                                condition = NULL,
+                                technique = NULL,
+                                study_id = NULL,
+                                sample_id = NULL,
+                                fields = c("species_name", "cell_type", "condition", "technique", "study_id", "sample_id"),
+                                gene_col_preference = c("gene_name_x", "gene_name_y", "ensembl_id", "gene_id")) {
+  if (is.list(stability_data) && !is.data.frame(stability_data)) {
+    if ("species_stability_combined" %in% names(stability_data)) {
+      stability_data <- stability_data$species_stability_combined
+    } else if ("species_stability" %in% names(stability_data)) {
+      stability_data <- stability_data$species_stability
+    } else {
+      stop("TTDB list must contain species_stability_combined or species_stability.", call. = FALSE)
+    }
+  }
+
+  .stop_if(!is.data.frame(stability_data), "stability_data must be a data frame or TTDB list.")
+
+  dat <- stability_data
+  if (!is.null(tissue)) {
+    if (!is.null(cell_type) && !setequal(as.character(cell_type), as.character(tissue))) {
+      stop("Use either cell_type or tissue; if both are supplied, they must contain the same values.", call. = FALSE)
+    }
+    cell_type <- tissue
+  }
+
+  if (!is.null(species) && "species_name" %in% colnames(dat)) {
+    dat <- dat[dat$species_name %in% species, , drop = FALSE]
+  }
+  if (!is.null(cell_type) && "cell_type" %in% colnames(dat)) {
+    dat <- dat[dat$cell_type %in% cell_type, , drop = FALSE]
+  }
+  if (!is.null(condition) && "condition" %in% colnames(dat)) {
+    dat <- dat[dat$condition %in% condition, , drop = FALSE]
+  }
+  if (!is.null(technique) && "technique" %in% colnames(dat)) {
+    dat <- dat[dat$technique %in% technique, , drop = FALSE]
+  }
+  if (!is.null(study_id) && "study_id" %in% colnames(dat)) {
+    dat <- dat[dat$study_id %in% study_id, , drop = FALSE]
+  }
+  if (!is.null(sample_id) && "sample_id" %in% colnames(dat)) {
+    dat <- dat[dat$sample_id %in% sample_id, , drop = FALSE]
+  }
+
+  .stop_if(nrow(dat) == 0L, "No TTDB rows remain after filtering.")
+
+  fields <- fields[fields %in% colnames(dat)]
+  .stop_if(length(fields) == 0L, "None of the requested metadata fields are present in the TTDB table.")
+
+  gene_col <- .first_existing_col(dat, gene_col_preference, required = FALSE, what = "gene identifier column")
+  out <- lapply(fields, function(field) {
+    values <- trimws(as.character(dat[[field]]))
+    keep <- !is.na(values) & nzchar(values)
+    values <- values[keep]
+    tab <- table(values)
+    if (length(tab) == 0L) {
+      return(data.frame(
+        field = character(0),
+        value = character(0),
+        n_records = integer(0),
+        n_genes = integer(0),
+        stringsAsFactors = FALSE
+      ))
+    }
+    n_genes <- rep(NA_integer_, length(tab))
+    if (!is.na(gene_col)) {
+      gene_id <- .collapse_gene_id(dat[[gene_col]][keep], "as_is")
+      gene_counts <- tapply(gene_id, values, function(z) {
+        z <- z[!is.na(z) & nzchar(z)]
+        length(unique(z))
+      })
+      n_genes <- as.integer(gene_counts[names(tab)])
+    }
+    data.frame(
+      field = field,
+      value = names(tab),
+      n_records = as.integer(tab),
+      n_genes = n_genes,
+      stringsAsFactors = FALSE
+    )
+  })
+
+  out <- do.call(rbind, out)
+  out$field <- factor(out$field, levels = fields)
+  out <- out[order(out$field, -out$n_records, out$value), , drop = FALSE]
+  out$field <- as.character(out$field)
+  rownames(out) <- NULL
+  out
 }
